@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.provider.Settings
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -24,13 +25,14 @@ class MainActivity : Activity() {
     // To hide an app from the grid, add its package name here, e.g. "com.amazon.avod"
     private val hidden = setOf<String>(
     )
-    // Apps listed here appear first, in this order
-private val favorites = listOf<String>(
-    "com.hulu.plus",
-    "com.amazon.firetv.youtube.tv",
-    "flix.com.vision",
-    "com.tubitv.ott",
-)
+
+    // Apps listed here appear first, in this order. Replace with your own package names.
+    private val favorites = listOf<String>(
+        "com.hulu.plus",
+        "com.amazon.firetv.youtube.tv",
+        "flix.com.vision",
+        "com.tubitv.ott",
+    )
 
     private val columns = 5
     private lateinit var grid: GridLayout
@@ -85,7 +87,7 @@ private val favorites = listOf<String>(
         populate()
     }
 
-    // Home button should stay on this screen, not exit.
+    // Back button should stay on this screen, not exit.
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         // do nothing
@@ -104,25 +106,25 @@ private val favorites = listOf<String>(
                 if (seen.add(pkg)) apps.add(ri)
             }
         }
+
         apps.sortWith(
-    compareBy<ResolveInfo>(
-        {
-            val i = favorites.indexOf(it.activityInfo.packageName)
-            if (i == -1) Int.MAX_VALUE else i
-        },
-        { it.loadLabel(pm).toString().lowercase() }
-    )
-) }
+            compareBy<ResolveInfo>(
+                {
+                    val i = favorites.indexOf(it.activityInfo.packageName)
+                    if (i == -1) Int.MAX_VALUE else i
+                },
+                { it.loadLabel(pm).toString().lowercase() }
+            )
+        )
 
         grid.removeAllViews()
         for (ri in apps) grid.addView(makeTile(ri))
+        grid.addView(makeSettingsTile())
         grid.getChildAt(0)?.requestFocus()
     }
 
-    private fun makeTile(ri: ResolveInfo): View {
-        val pm = packageManager
-
-        val tile = LinearLayout(this).apply {
+    private fun baseTile(): LinearLayout {
+        return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             isFocusable = true
@@ -134,16 +136,12 @@ private val favorites = listOf<String>(
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
             }
             setOnFocusChangeListener { v, hasFocus -> v.background = tileBackground(hasFocus) }
-            setOnClickListener { launch(ri) }
         }
+    }
 
-        val icon = ImageView(this).apply {
-            setImageDrawable(ri.loadIcon(pm))
-            layoutParams = LinearLayout.LayoutParams(dp(88), dp(88))
-        }
-
-        val label = TextView(this).apply {
-            text = ri.loadLabel(pm)
+    private fun makeLabel(name: CharSequence): TextView {
+        return TextView(this).apply {
+            text = name
             textSize = 16f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -151,20 +149,47 @@ private val favorites = listOf<String>(
             ellipsize = TextUtils.TruncateAt.END
             setPadding(0, dp(8), 0, 0)
         }
+    }
+
+    private fun makeTile(ri: ResolveInfo): View {
+        val pm = packageManager
+        val tile = baseTile()
+        tile.setOnClickListener { launch(ri) }
+
+        val icon = ImageView(this)
+        icon.setImageDrawable(ri.loadIcon(pm))
+        icon.layoutParams = LinearLayout.LayoutParams(dp(88), dp(88))
 
         tile.addView(icon)
-        tile.addView(label)
+        tile.addView(makeLabel(ri.loadLabel(pm)))
         return tile
     }
 
-    private fun tileBackground(focused: Boolean) = GradientDrawable().apply {
-        cornerRadius = dp(16).toFloat()
+    private fun makeSettingsTile(): View {
+        val tile = baseTile()
+        tile.setOnClickListener { openSettings() }
+
+        val icon = ImageView(this)
+        icon.setImageResource(android.R.drawable.ic_menu_preferences)
+        icon.setColorFilter(Color.WHITE)
+        icon.layoutParams = LinearLayout.LayoutParams(dp(88), dp(88))
+
+        tile.addView(icon)
+        tile.addView(makeLabel("Settings"))
+        return tile
+    }
+
+    private fun tileBackground(focused: Boolean): GradientDrawable {
+        val bg = GradientDrawable()
+        bg.cornerRadius = dp(16).toFloat()
         if (focused) {
-            setColor(0x33FFFFFF)
-            setStroke(dp(3), Color.WHITE)
+            bg.setColor(0x33FFFFFF)
+            bg.setStroke(dp(3), Color.WHITE)
         } else {
-            setColor(Color.TRANSPARENT)
+            bg.setColor(Color.TRANSPARENT)
         }
+        return bg
+    }
 
     private fun launch(ri: ResolveInfo) {
         val intent = Intent(Intent.ACTION_MAIN)
@@ -174,6 +199,14 @@ private val favorites = listOf<String>(
             startActivity(intent)
         } catch (e: Exception) {
             Toast.makeText(this, "Couldn't open that app", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Couldn't open Settings", Toast.LENGTH_SHORT).show()
         }
     }
 
