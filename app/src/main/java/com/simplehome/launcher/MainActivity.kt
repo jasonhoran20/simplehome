@@ -165,7 +165,6 @@ private val favorites = listOf<String>(
         } else {
             setColor(Color.TRANSPARENT)
         }
-    }
 
     private fun launch(ri: ResolveInfo) {
         val intent = Intent(Intent.ACTION_MAIN)
