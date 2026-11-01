@@ -24,6 +24,13 @@ class MainActivity : Activity() {
     // To hide an app from the grid, add its package name here, e.g. "com.amazon.avod"
     private val hidden = setOf<String>(
     )
+    // Apps listed here appear first, in this order
+private val favorites = listOf<String>(
+    "com.hulu.plus",
+    "com.amazon.firetv.youtube.tv",
+    "flix.com.vision",
+    "com.tubitv.ott",
+)
 
     private val columns = 5
     private lateinit var grid: GridLayout
@@ -97,7 +104,15 @@ class MainActivity : Activity() {
                 if (seen.add(pkg)) apps.add(ri)
             }
         }
-        apps.sortBy { it.loadLabel(pm).toString().lowercase() }
+        apps.sortWith(
+    compareBy<ResolveInfo>(
+        {
+            val i = favorites.indexOf(it.activityInfo.packageName)
+            if (i == -1) Int.MAX_VALUE else i
+        },
+        { it.loadLabel(pm).toString().lowercase() }
+    )
+) }
 
         grid.removeAllViews()
         for (ri in apps) grid.addView(makeTile(ri))
